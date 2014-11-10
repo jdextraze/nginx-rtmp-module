@@ -304,6 +304,8 @@ static ngx_int_t ngx_rtmp_mp4_parse(ngx_rtmp_session_t *s, u_char *pos,
        u_char *last);
 static ngx_int_t ngx_rtmp_mp4_parse_trak(ngx_rtmp_session_t *s, u_char *pos,
        u_char *last);
+static ngx_int_t ngx_rtmp_mp4_parse_tkhd(ngx_rtmp_session_t *s, u_char *pos,
+        u_char *last);
 static ngx_int_t ngx_rtmp_mp4_parse_mdhd(ngx_rtmp_session_t *s, u_char *pos,
        u_char *last);
 static ngx_int_t ngx_rtmp_mp4_parse_hdlr(ngx_rtmp_session_t *s, u_char *pos,
@@ -355,6 +357,7 @@ typedef struct {
 
 static ngx_rtmp_mp4_box_t                       ngx_rtmp_mp4_boxes[] = {
     { ngx_rtmp_mp4_make_tag('t','r','a','k'),   ngx_rtmp_mp4_parse_trak   },
+    { ngx_rtmp_mp4_make_tag('t','k','h','d'),   ngx_rtmp_mp4_parse_tkhd   },
     { ngx_rtmp_mp4_make_tag('m','d','i','a'),   ngx_rtmp_mp4_parse        },
     { ngx_rtmp_mp4_make_tag('m','d','h','d'),   ngx_rtmp_mp4_parse_mdhd   },
     { ngx_rtmp_mp4_make_tag('h','d','l','r'),   ngx_rtmp_mp4_parse_hdlr   },
@@ -501,6 +504,62 @@ ngx_rtmp_mp4_parse_trak(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
 
 
 static ngx_int_t
+ngx_rtmp_mp4_parse_tkhd(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
+{
+    ngx_rtmp_mp4_ctx_t         *ctx;
+    ngx_rtmp_mp4_track_t       *t;
+    uint8_t                     version;
+
+    ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_mp4_module);
+
+    if (ctx->track == NULL) {
+        return NGX_OK;
+    }
+
+    t = ctx->track;
+
+    if (pos + 1 > last) {
+        return NGX_ERROR;
+    }
+
+    version = *(uint8_t *) pos;
+
+    pos += 3; // flags
+
+    if (version == 1)
+    {
+        pos += 8;   // creation_time
+        pos += 8;   // modification_time
+        pos += 4;   // track_id
+        pos += 4;   // ?
+        pos += 8;   // duration
+    }
+    else
+    {
+        pos += 4;   // creation_time
+        pos += 4;   // modification_time
+        pos += 4;   // track_id
+        pos += 4;   // ?
+        pos += 4;   // duration
+    }
+
+    pos += 4;   // ?
+    pos += 4;   // ?
+    pos += 2;   // layer
+    pos += 2;   // alternate_group
+    pos += 2;   // volume
+    pos += 2;   // ?
+
+    pos += 9 * 4;   // matrix
+
+    ctx->width = (uint32_t) ngx_rtmp_r32(*(uint32_t *) pos) / 65536;
+    ctx->height = (uint32_t) ngx_rtmp_r32(*(uint32_t *) pos) / 65536;
+
+    return NGX_OK;
+}
+
+
+static ngx_int_t
 ngx_rtmp_mp4_parse_mdhd(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
 {
     ngx_rtmp_mp4_ctx_t         *ctx;
@@ -616,11 +675,11 @@ ngx_rtmp_mp4_parse_video(ngx_rtmp_session_t *s, u_char *pos, u_char *last,
 
     pos += 24;
 
-    ctx->width = ngx_rtmp_r16(*(uint16_t *) pos);
+    //ctx->width = ngx_rtmp_r16(*(uint16_t *) pos);
 
     pos += 2;
 
-    ctx->height = ngx_rtmp_r16(*(uint16_t *) pos);
+    //ctx->height = ngx_rtmp_r16(*(uint16_t *) pos);
 
     pos += 52;
 
@@ -1973,7 +2032,7 @@ ngx_rtmp_mp4_send_meta(ngx_rtmp_session_t *s)
         { NGX_RTMP_AMF_NUMBER,
           ngx_string("height"),
           &v.height, 0 },
-
+/*
         { NGX_RTMP_AMF_NUMBER,
           ngx_string("displayWidth"),
           &v.width, 0 },
@@ -1981,7 +2040,7 @@ ngx_rtmp_mp4_send_meta(ngx_rtmp_session_t *s)
         { NGX_RTMP_AMF_NUMBER,
           ngx_string("displayHeight"),
           &v.height, 0 },
-
+*/
         { NGX_RTMP_AMF_NUMBER,
           ngx_string("duration"),
           &v.duration, 0 },

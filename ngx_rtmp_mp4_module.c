@@ -507,21 +507,29 @@ static ngx_int_t
 ngx_rtmp_mp4_parse_tkhd(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
 {
     ngx_rtmp_mp4_ctx_t         *ctx;
+    ngx_rtmp_mp4_track_t       *t;
     uint8_t                     version;
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_mp4_module);
 
-    ngx_log_debug0(NGX_LOG_DEBUG_RTMP, s->connection->log, 0, "ngx_rtmp_mp4_parse_tkhd");
+    if (ctx->track == NULL) {
+        return NGX_OK;
+    }
+
+    t = ctx->track;
+
+    if (t->type != NGX_RTMP_MSG_VIDEO) {
+        return NGX_OK;
+    }
 
     if (pos + 1 > last) {
         return NGX_ERROR;
     }
 
     version = *(uint8_t *) pos;
+    pos++;
 
     pos += 3; // flags
-
-    ngx_log_debug1(NGX_LOG_DEBUG_RTMP, s->connection->log, 0, "ngx_rtmp_mp4_parse_tkhd version=%ui", version);
 
     if (version == 1)
     {
@@ -560,9 +568,12 @@ ngx_rtmp_mp4_parse_tkhd(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
     pos += 9 * 4;   // matrix
 
     ctx->width = (uint32_t) ngx_rtmp_r32(*(uint32_t *) pos) / 65536;
+    pos += 4;
     ctx->height = (uint32_t) ngx_rtmp_r32(*(uint32_t *) pos) / 65536;
 
-    ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0, "ngx_rtmp_mp4_parse_tkhd width=%uL height=%uL", ctx->width, ctx->height);
+    ngx_log_debug2(NGX_LOG_DEBUG_RTMP, s->connection->log, 0,
+            "mp4: width=%uL height=%uL",
+            ctx->width, ctx->height);
 
     return NGX_OK;
 }

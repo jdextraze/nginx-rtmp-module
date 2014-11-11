@@ -512,12 +512,6 @@ ngx_rtmp_mp4_parse_tkhd(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
 
     ctx = ngx_rtmp_get_module_ctx(s, ngx_rtmp_mp4_module);
 
-    if (ctx->track == NULL) {
-        return NGX_OK;
-    }
-
-    t = ctx->track;
-
     if (pos + 1 > last) {
         return NGX_ERROR;
     }
@@ -528,6 +522,9 @@ ngx_rtmp_mp4_parse_tkhd(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
 
     if (version == 1)
     {
+        if (pos + 32 > last) {
+            return NGX_ERROR;
+        }
         pos += 8;   // creation_time
         pos += 8;   // modification_time
         pos += 4;   // track_id
@@ -536,11 +533,18 @@ ngx_rtmp_mp4_parse_tkhd(ngx_rtmp_session_t *s, u_char *pos, u_char *last)
     }
     else
     {
+        if (pos + 20 > last) {
+            return NGX_ERROR;
+        }
         pos += 4;   // creation_time
         pos += 4;   // modification_time
         pos += 4;   // track_id
         pos += 4;   // ?
         pos += 4;   // duration
+    }
+
+    if (pos + 60 > last) {
+        return NGX_ERROR;
     }
 
     pos += 4;   // ?
@@ -2032,15 +2036,7 @@ ngx_rtmp_mp4_send_meta(ngx_rtmp_session_t *s)
         { NGX_RTMP_AMF_NUMBER,
           ngx_string("height"),
           &v.height, 0 },
-/*
-        { NGX_RTMP_AMF_NUMBER,
-          ngx_string("displayWidth"),
-          &v.width, 0 },
 
-        { NGX_RTMP_AMF_NUMBER,
-          ngx_string("displayHeight"),
-          &v.height, 0 },
-*/
         { NGX_RTMP_AMF_NUMBER,
           ngx_string("duration"),
           &v.duration, 0 },
